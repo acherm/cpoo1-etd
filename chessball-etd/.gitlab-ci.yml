@@ -1,0 +1,8 @@
+# CI minimale (bonus TP3) : compile et lance les tests à chaque push.
+image: maven:3.9-eclipse-temurin-21
+cache:
+  paths: [.m2/repository]
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+test:
+  script: mvn -B -q test
