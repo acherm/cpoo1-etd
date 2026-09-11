@@ -33,7 +33,7 @@
                 <version>3.5.2</version>
                 <configuration><useModulePath>false</useModulePath></configuration>
             </plugin>
-            <!-- Suite prof du TP3 Q9 : src/test/java2 vue comme sources de
+            <!-- Suite prof du TP2 Q6 : src/test/java2 vue comme sources de
                  test par mvn/CI et tout IDE (VS Code ou IntelliJ) — pas de
                  « Test Sources Root » manuel. -->
             <plugin>
@@ -106,7 +106,7 @@
             <artifactId>mockito-core</artifactId>
             <!-- 5.20+ obligatoire : 5.14.2 ne sait plus mocker sur JDK 25
                  (« Mockito cannot mock this class », y compris java.util.Random,
-                 que le TP5 Arbitre et le TP6 mockent). Vérifié sur JDK 21 et 25. -->
+                 que le TP4 Appariement et le TP5 Arbitre mockent). Vérifié sur JDK 21 et 25. -->
             <version>5.20.0</version>
             <scope>test</scope>
         </dependency>
