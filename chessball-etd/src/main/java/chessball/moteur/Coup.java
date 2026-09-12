@@ -2,10 +2,12 @@ package chessball.moteur;
 
 /**
  * Les trois actions possibles d'un tour (réponse client n° 14 : une seule par tour).
- * Interface {@code sealed} : le {@code switch} du moteur est vérifié exhaustif
- * par le compilateur (TP3 Q3).
+ * Interface ordinaire : contrairement à un {@code sealed interface}, rien ne
+ * garantit ici qu'on a bien traité les trois implémentations — voir le
+ * {@code default} du {@code switch} dans {@code Partie.jouer} (et le bonus,
+ * qui vous fait retrouver cette garantie avec {@code sealed} + {@code record}).
  */
-public sealed interface Coup permits Deplacement, Passe, Tir {
+public interface Coup {
     /** Case de la pièce qui agit — commune aux trois coups. */
     Position origine();
 }

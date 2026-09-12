@@ -11,9 +11,9 @@ mvn -q test          # compile ; aucun test au départ, c'est normal
 
 | Fichier (`src/main/java/chessball/moteur/`) | Rôle |
 |---|---|
-| `Position.java` | case du plateau : `record`, validation en construction, fabrique `Position.of("b2")` |
+| `Position.java` | case du plateau : classe-valeur immuable, validation en construction, fabrique `Position.of("b2")` |
 | `Direction.java` | les huit directions d'un tir |
-| `Coup.java`, `Deplacement.java`, `Passe.java`, `Tir.java` | les trois coups d'un tour, interface `sealed` et ses `record` |
+| `Coup.java`, `Deplacement.java`, `Passe.java`, `Tir.java` | les trois coups d'un tour, une interface et ses classes |
 
 Tout le reste (`Equipe`, `Piece`, `Plateau`, `Case`, `Ballon`, les motifs de
 déplacement, la partie) est à écrire, question après question, avec ses tests
