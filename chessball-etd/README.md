@@ -60,3 +60,12 @@ match IA contre IA du TP4 ; la mutation du TP5 (rapport dans
 Le rendu du module (TP5) est un dépôt Git contenant ce projet, vos modèles
 dans `docs/` et le rapport `docs/rapport.md`. `git init` ici quand vous
 voulez, aucune forge imposée.
+
+## `docs/cahier-des-charges.md`
+
+Le **cahier des charges du binôme** : un gabarit dont les sections 1 et 2
+sont les deux documents du client, et dont tout le reste (réponses
+officielles, glossaire, modèles, scénarios, traçabilité vers le code et les
+tests) se remplit du TD2 au TP5. Les `.puml`, `.uvl` et leurs SVG se mettent
+à côté. C'est ce cahier, complété, qui est rendu avec le code et le rapport
+à la fin du module.
