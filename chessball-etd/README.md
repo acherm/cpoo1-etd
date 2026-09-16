@@ -1,11 +1,14 @@
-# chessball-etd : squelette du moteur ChessBall (CPOO1, TP1 à TP5)
+# chessball-etd : squelette du moteur ChessBall (CPOO1, TP3 à TP5)
 
-Projet Maven prêt (Java 21, JUnit 5, Mockito, JaCoCo). Il se dépose dans le
-dépôt Git du binôme créé au TP1 (voir TP1 Q0).
+Projet Maven prêt (Java 21, JUnit 5, Mockito, JaCoCo, profil PIT). Il se
+récupère au TP3 (« Code → Download ZIP » sur la page de l'espace de travail,
+ou `git clone`) et vit jusqu'au rendu du TP5.
 
 ```bash
-mvn -q test          # compile ; aucun test au départ, c'est normal
+mvn -q test
 ```
+
+Vert, aucun test au départ : c'est normal.
 
 ## Ce qui est fourni (à lire, pas à réécrire)
 
@@ -14,18 +17,46 @@ mvn -q test          # compile ; aucun test au départ, c'est normal
 | `Position.java` | case du plateau : classe-valeur immuable, validation en construction, fabrique `Position.of("b2")` |
 | `Direction.java` | les huit directions d'un tir |
 | `Coup.java`, `Deplacement.java`, `Passe.java`, `Tir.java` | les trois coups d'un tour, une interface et ses classes |
+| `Couleur.java` | `BLEUS`, `ROUGES`, `adverse()`, `rangeeAdverse()` |
+| `TypePiece.java` | `DAME`, `TOUR`, `FOU`, `CAVALIER` |
+| `Refus.java` | les motifs de refus d'un coup (`AUCUN` = légal) |
+| `Statut.java` | les états du match : `ENGAGEMENT`, `EN_JEU`, `MI_TEMPS`, `TERMINE` |
+| `ResultatCoup.java` | ce que `Partie.jouer` renvoie : `accepte()`, `refus()`, `but()` |
 
-Tout le reste (`Equipe`, `Piece`, `Plateau`, `Case`, `Ballon`, les motifs de
-déplacement, la partie) est à écrire, question après question, avec ses tests
-dans `src/test/java/chessball/moteur/`.
+Tout le reste (`Equipe`, `Piece`, `Plateau`, `Case`, `Ballon`, `Motif`,
+`Partie`, `Score`, l'IA, le service) est à écrire, question après question,
+avec ses tests dans `src/test/java/chessball/…`. Les sujets nomment les
+classes et les méthodes attendues : les suites de l'encadrant·e et le code
+fourni compilent contre ces signatures.
 
-## `src/test/java2`
+## Ce qui se copie plus tard, depuis l'espace de travail
 
-Dossier réservé à la **suite de tests de l'encadrant·e** (TP2 Q6) : le
-`pom.xml` le déclare comme sources de test, `mvn test` l'exécute une fois
-l'archive dézippée dedans.
+| Quand | Quoi | Où le mettre |
+|---|---|---|
+| TP3 Q10 | `suites-prof/chessball-tp3/` | `src/test/java2/` |
+| TP4 Q6 | `extras/moteur/StrategieAdversaire.java` | `src/main/java/chessball/moteur/` |
+| TP4 Q7 | `extras/ui/Console.java`, `extras/ui/Main.java` | `src/main/java/chessball/ui/` |
+| TP4 Q5 | `suites-prof/chessball-tp4/` | `src/test/java2/` |
 
-## Rituels
+`src/test/java2` est déclaré comme sources de test dans le `pom.xml` :
+`mvn test` l'exécute, quel que soit l'IDE.
 
-Un commit par question, message à l'impératif, issue référencée (`#N`).
-`.gitlab-ci.yml` est fourni : activer la CI sur la forge est le bonus du TP1.
+## Commandes utiles
+
+```bash
+mvn -q test
+mvn verify
+mvn -q compile exec:java
+mvn -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage
+```
+
+Dans l'ordre : les tests ; les tests plus la règle JaCoCo (couverture totale
+sur ce que vous écrivez, rapport dans `target/site/jacoco/index.html`) ; le
+match IA contre IA du TP4 ; la mutation du TP5 (rapport dans
+`target/pit-reports/index.html`).
+
+## Rendu
+
+Le rendu du module (TP5) est un dépôt Git contenant ce projet, vos modèles
+dans `docs/` et le rapport `docs/rapport.md`. `git init` ici quand vous
+voulez, aucune forge imposée.

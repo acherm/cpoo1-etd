@@ -27,15 +27,44 @@
                     <release>${java.version}</release>
                 </configuration>
             </plugin>
+            <!-- Expose le chemin du jar Mockito pour l'option -javaagent. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.8.1</version>
+                <executions>
+                    <execution>
+                        <id>properties</id>
+                        <goals><goal>properties</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
-                <configuration><useModulePath>false</useModulePath></configuration>
+                <configuration>
+                    <useModulePath>false</useModulePath>
+                    <!-- @{argLine} : JaCoCo pose son agent dans argLine.
+                         Mockito en -javaagent : méthode recommandée depuis
+                         Mockito 5 (l'auto-attachement disparaît des JDK
+                         récents et casse le mock de java.util.Random, TP5). -->
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -XX:+EnableDynamicAgentLoading</argLine>
+                </configuration>
             </plugin>
-            <!-- Suite prof du TP2 Q6 : src/test/java2 vue comme sources de
-                 test par mvn/CI et tout IDE (VS Code ou IntelliJ) — pas de
-                 « Test Sources Root » manuel. -->
+            <!-- TP4 Q7 : mvn -q compile exec:java lance chessball.ui.Main
+                 (copié depuis extras/ui de l'espace de travail). -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <mainClass>chessball.ui.Main</mainClass>
+                </configuration>
+            </plugin>
+            <!-- Suites de l'encadrant·e (TP3 Q10, TP4 Q5) : src/test/java2
+                 vu comme sources de test par mvn et tout IDE (VS Code ou
+                 IntelliJ) — pas de « Test Sources Root » manuel. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
@@ -88,6 +117,47 @@
         </plugins>
     </build>
 
+    <profiles>
+        <!-- TP5 Q11 :
+             mvn -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage
+             Rapport : target/pit-reports/index.html
+             PIT 1.20.0 + plugin JUnit 5 1.2.2 : les versions plus anciennes
+             échouent avec JUnit 5.13. -->
+        <profile>
+            <id>mutation</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.20.0</version>
+                        <configuration>
+                            <targetClasses>
+                                <param>chessball.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>chessball.*</param>
+                            </targetTests>
+                            <excludedClasses>
+                                <param>chessball.ui.*</param>
+                            </excludedClasses>
+                            <outputFormats>
+                                <outputFormat>HTML</outputFormat>
+                            </outputFormats>
+                        </configuration>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.2</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -106,7 +176,7 @@
             <artifactId>mockito-core</artifactId>
             <!-- 5.20+ obligatoire : 5.14.2 ne sait plus mocker sur JDK 25
                  (« Mockito cannot mock this class », y compris java.util.Random,
-                 que le TP4 Appariement et le TP5 Arbitre mockent). Vérifié sur JDK 21 et 25. -->
+                 que le TP5 mocke). Vérifié sur JDK 21 et 25. -->
             <version>5.20.0</version>
             <scope>test</scope>
         </dependency>
