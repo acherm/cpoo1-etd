@@ -1,19 +1,18 @@
 package chessball.moteur;
 
-/**
- * Motifs de refus d'un coup. Un {@code enum}, jamais une chaîne libre : un
- * test qui compare des {@code String} finit toujours par une faute de frappe
- * silencieuse. {@link #AUCUN} signifie « coup légal ».
- */
+/** Motifs de refus d'un coup : un {@code enum}, jamais une chaîne libre. */
 public enum Refus {
     AUCUN,
+    PARTIE_TERMINEE,
     PAS_DE_PIECE,
     PAS_SON_TOUR,
-    PAS_PORTEUSE,
-    CIBLE_NON_COEQUIPIERE,
-    NON_ALIGNEE,
-    TRAJECTOIRE_OBSTRUEE,
-    CASE_OCCUPEE,
-    PARTIE_TERMINEE,
-    DIRECTION_IMPOSSIBLE
+    HORS_PLATEAU,
+    CASE_NON_LIBRE,
+    PAS_DE_BALLON,
+    ZONE_DE_TOUCHE,
+    PAS_D_ADVERSAIRE,
+    RESERVE_AUX_DEFENSEURS,
+    RESERVE_AUX_ATTAQUANTS,
+    RIEN_A_SAUTER,
+    REPRESAILLES
 }

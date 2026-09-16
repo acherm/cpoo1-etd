@@ -1,13 +1,12 @@
 package chessball.moteur;
 
 /**
- * Les trois actions possibles d'un tour (réponse client n° 14 : une seule par tour).
- * Interface ordinaire : contrairement à un {@code sealed interface}, rien ne
- * garantit ici qu'on a bien traité les trois implémentations — voir le
- * {@code default} du {@code switch} dans {@code Partie.jouer} (et le bonus,
- * qui vous fait retrouver cette garantie avec {@code sealed} + {@code record}).
+ * Une action d'un tour : une pièce (repérée par sa case d'origine) agit dans
+ * une direction. Quatre classes l'implémentent : {@link Deplacement},
+ * {@link Poussee}, {@link Tacle}, {@link Saut}. L'interface n'est pas scellée :
+ * un {@code switch} sur un coup doit avoir un {@code default}.
  */
 public interface Coup {
-    /** Case de la pièce qui agit — commune aux trois coups. */
     Position origine();
+    Direction direction();
 }

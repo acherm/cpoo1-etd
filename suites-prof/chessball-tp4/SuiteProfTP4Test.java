@@ -2,400 +2,391 @@ package chessball;
 
 import chessball.moteur.*;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static chessball.moteur.Direction.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Suite de l'encadrant·e du TP4 (Q5) : la partie qui se joue. Compile contre
- * les signatures du sujet ; se copie dans src/test/java2/chessball/.
+ * Suite de l'encadrant·e du TP4 : la partie qui se joue, contre l'oracle du
+ * dépôt officiel (kit §8 : les 25 coups de départ, perft, vecteurs V1–V3).
+ * Compile contre les signatures du sujet ; à copier dans src/test/java2/chessball/.
  */
-@DisplayName("TP4 — le moteur qui tourne")
+@DisplayName("TP4 — le moteur qui tourne (règles officielles)")
 class SuiteProfTP4Test {
 
-    /** Fabrique de fixtures : un plateau, deux équipes. */
+    // ------------------------------------------------------------ outillage
+
+    /** Notation LAN suffixée du dépôt officiel, calculée depuis la géométrie du coup. */
+    static String lan(Coup c) {
+        Position q = c.origine();
+        Position q1 = q.voisine(c.direction()).orElseThrow();
+        Position q2 = q1.voisine(c.direction()).orElse(null);
+        if (c instanceof Deplacement) return q + "-" + q1;
+        if (c instanceof Poussee)     return q + "-" + q1 + "@" + q2;
+        if (c instanceof Saut)        return q + "-" + q2 + "^" + q1;
+        if (c instanceof Tacle)       return q + "-" + q1 + "!" + q2;
+        throw new IllegalArgumentException(c.toString());
+    }
+
+    static List<String> lan(List<Coup> coups) { return coups.stream().map(SuiteProfTP4Test::lan).sorted().toList(); }
+
+    /** perft par rejeu depuis la position de départ (pas besoin de copier une partie). */
+    static long perft(List<Coup> prefixe, int profondeur) {
+        Partie p = Partie.positionOfficielle();
+        for (Coup c : prefixe) assertTrue(p.jouer(c).accepte());
+        if (profondeur == 0) return 1;
+        long total = 0;
+        for (Coup c : p.coupsLegaux()) {
+            List<Coup> suite = new ArrayList<>(prefixe);
+            suite.add(c);
+            total += perft(suite, profondeur - 1);
+        }
+        return total;
+    }
+
+    /** Un terrain vide avec deux équipes, pour poser ce qu'on veut. */
     static final class Terrain {
         final Plateau plateau = new Plateau();
         final Equipe bleus = new Equipe(Couleur.BLEUS), rouges = new Equipe(Couleur.ROUGES);
-        Partie partie;
-        Ballon ballon;
         Piece poser(Couleur c, TypePiece t, String pos) {
             Piece p = new Piece(t);
             (c == Couleur.BLEUS ? bleus : rouges).ajouter(p);
             plateau.placer(p, Position.of(pos));
             return p;
         }
-        Partie demarrer(int k, Couleur engage) { return demarrer(k, engage, "d4"); }
-        Partie demarrer(int k, Couleur engage, String caseCentrale) {
-            partie = new Partie(plateau, bleus, rouges, k);
-            partie.engager(engage, Position.of(caseCentrale));
-            ballon = partie.ballon().orElseThrow();
-            return partie;
-        }
-        Terrain porteuse(Piece p) { ballon.prendrePossession(p); return this; }
+        Partie partie(String ballon) { return new Partie(plateau, bleus, rouges, Position.of(ballon)); }
+        Partie partie(String ballon, Couleur trait) { return new Partie(plateau, bleus, rouges, Position.of(ballon), trait); }
     }
 
-    // =====================================================================
-    // Q1 : engagement
-    // =====================================================================
+    static final List<String> DEPART = Arrays.stream(("b6-a5 b6-a6 b6-b5 b6-c6 c5-b4 c5-b5 c5-c4 c5-c6 "
+            + "c5-d4@e3 c5-d5 c5-e3^d4 d6-c6 d6-d5 d6-e6 e5-c3^d4 e5-d4@c3 e5-d5 e5-e4 e5-e6 e5-f4 e5-f5 "
+            + "f6-e6 f6-f5 f6-g5 f6-g6").split(" ")).sorted().toList();
 
-    @Test @DisplayName("l'engagement n'est légal que sur d4, d5, e4 ou e5")
-    void engagementSurCaseCentrale() {
-        Terrain t = new Terrain();
-        Partie p = new Partie(t.plateau, t.bleus, t.rouges, 20);
-        assertEquals(Statut.ENGAGEMENT, p.statut());
-        assertTrue(Partie.estCaseCentrale(Position.of("d4")));
-        assertFalse(Partie.estCaseCentrale(Position.of("a1")));
-        assertThrows(IllegalArgumentException.class, () -> p.engager(Couleur.BLEUS, Position.of("a1")));
-        assertDoesNotThrow(() -> p.engager(Couleur.BLEUS, Position.of("e5")));
+    // ------------------------------------------- Q3 : position officielle
+
+    @Test @DisplayName("la position officielle : dix pièces, ballon en d4, Bleus au trait")
+    void positionOfficielle() {
+        Partie p = Partie.positionOfficielle();
         assertEquals(Statut.EN_JEU, p.statut());
         assertEquals(Couleur.BLEUS, p.trait());
-        assertEquals(1, p.periode());
-        assertTrue(p.ballon().orElseThrow().estLibre());
-        assertEquals(Position.of("e5"), p.ballon().orElseThrow().position());
+        assertEquals(Position.of("d4"), p.ballon().position());
+        assertEquals(5, p.equipe(Couleur.BLEUS).pieces().size());
+        assertEquals(5, p.equipe(Couleur.ROUGES).pieces().size());
+        assertEquals(TypePiece.DEFENSEUR, p.plateau().pieceEn(Position.of("b6")).orElseThrow().type());
+        assertEquals(TypePiece.ATTAQUANT, p.plateau().pieceEn(Position.of("e2")).orElseThrow().type());
+        assertEquals(Couleur.ROUGES, p.plateau().pieceEn(Position.of("f1")).orElseThrow().couleur());
+        assertTrue(p.memoireTacle().isEmpty());
+        assertTrue(p.vainqueur().isEmpty());
     }
 
-    @Test @DisplayName("une case centrale occupée refuse l'engagement")
-    void engagementCaseOccupee() {
+    // ------------------------------------------- Q7 : l'oracle officiel
+
+    @Test @DisplayName("les 25 coups légaux de la position de départ (kit §8.1)")
+    void vingtCinqCoupsDeDepart() {
+        assertEquals(DEPART, lan(Partie.positionOfficielle().coupsLegaux()));
+    }
+
+    @Test @DisplayName("perft 1, 2, 3 depuis le départ : 25, 577, 15 224")
+    void perftDepart() {
+        assertEquals(25, perft(List.of(), 1));
+        assertEquals(577, perft(List.of(), 2));
+        assertEquals(15_224, perft(List.of(), 3));
+    }
+
+    /** V1 : la position d'avant le tacle d5→c4, puis le tacle lui-même. */
+    static Partie v1(boolean avecMemoire) {
         Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.TOUR, "d4");
-        Partie p = new Partie(t.plateau, t.bleus, t.rouges, 20);
-        assertThrows(IllegalStateException.class, () -> p.engager(Couleur.BLEUS, Position.of("d4")));
-    }
-
-    @Test @DisplayName("on n'engage pas une partie en jeu")
-    void pasDEngagementEnJeu() {
-        Terrain t = new Terrain();
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        assertThrows(IllegalStateException.class, () -> p.engager(Couleur.ROUGES, Position.of("e5")));
-    }
-
-    // =====================================================================
-    // Q2 : déplacement et fin de tour
-    // =====================================================================
-
-    @Test @DisplayName("la tour glisse en ligne, pas en diagonale")
-    void tourGlisseEnLigne() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.TOUR, "b2");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        assertEquals(Refus.AUCUN, p.verifierDeplacement(new Deplacement(Position.of("b2"), Position.of("b6"))));
-        assertEquals(Refus.AUCUN, p.verifierDeplacement(new Deplacement(Position.of("b2"), Position.of("g2"))));
-        assertEquals(Refus.NON_ALIGNEE, p.verifierDeplacement(new Deplacement(Position.of("b2"), Position.of("c3"))));
-    }
-
-    @Test @DisplayName("une pièce intermédiaire bloque la tour, pas le cavalier")
-    void obstruction() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.TOUR, "b2");
-        t.poser(Couleur.BLEUS, TypePiece.CAVALIER, "b1");
-        t.poser(Couleur.ROUGES, TypePiece.FOU, "b4");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        assertEquals(Refus.TRAJECTOIRE_OBSTRUEE,
-                p.verifierDeplacement(new Deplacement(Position.of("b2"), Position.of("b6"))));
-        t.plateau.placer(t.plateau.pieceEn(Position.of("b4")).orElseThrow(), Position.of("c2"));
-        assertEquals(Refus.AUCUN,
-                p.verifierDeplacement(new Deplacement(Position.of("b1"), Position.of("c3"))), "le cavalier saute");
-    }
-
-    @Test @DisplayName("pas de capture : case d'arrivée occupée refusée")
-    void caseArriveeOccupee() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.TOUR, "b2");
-        t.poser(Couleur.ROUGES, TypePiece.FOU, "b6");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        assertEquals(Refus.CASE_OCCUPEE,
-                p.verifierDeplacement(new Deplacement(Position.of("b2"), Position.of("b6"))));
-    }
-
-    @Test @DisplayName("un coup accepté change le trait ; un coup refusé ne consomme pas le tour")
-    void finDeTour() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.TOUR, "b2");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        ResultatCoup refuse = p.jouer(new Deplacement(Position.of("b2"), Position.of("c3")));
-        assertFalse(refuse.accepte());
-        assertEquals(Refus.NON_ALIGNEE, refuse.refus());
-        assertEquals(Couleur.BLEUS, p.trait());
-        ResultatCoup ok = p.jouer(new Deplacement(Position.of("b2"), Position.of("b6")));
-        assertTrue(ok.accepte());
-        assertFalse(ok.but());
-        assertEquals(Couleur.ROUGES, p.trait());
-        assertEquals(Position.of("b6"), t.plateau.positionDe(t.plateau.pieceEn(Position.of("b6")).orElseThrow()).orElseThrow());
-    }
-
-    @Test @DisplayName("ce n'est pas son tour")
-    void pasSonTour() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.ROUGES, TypePiece.TOUR, "h8");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        ResultatCoup r = p.jouer(new Deplacement(Position.of("h8"), Position.of("h5")));
-        assertFalse(r.accepte());
-        assertEquals(Refus.PAS_SON_TOUR, r.refus());
-    }
-
-    @Test @DisplayName("pas de pièce à l'origine")
-    void pasDePiece() {
-        Terrain t = new Terrain();
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        assertEquals(Refus.PAS_DE_PIECE, p.jouer(new Deplacement(Position.of("a1"), Position.of("a2"))).refus());
-    }
-
-    @Test @DisplayName("une pièce qui atteint la case du ballon libre s'en empare")
-    void priseDePossessionParDeplacement() {
-        Terrain t = new Terrain();
-        Piece tour = t.poser(Couleur.BLEUS, TypePiece.TOUR, "d1");
-        Partie p = t.demarrer(20, Couleur.BLEUS);          // ballon libre en d4
-        assertTrue(p.ballon().orElseThrow().estLibre());
-        ResultatCoup r = p.jouer(new Deplacement(Position.of("d1"), Position.of("d4")));
-        assertTrue(r.accepte());
-        assertSame(tour, p.ballon().orElseThrow().porteuse().orElseThrow());
-    }
-
-    // =====================================================================
-    // Q3 : passe, style BDD (un scénario = une classe @Nested, un alors = un test)
-    // =====================================================================
-
-    @Nested
-    @DisplayName("Étant donné une tour bleue porteuse en b2 et un fou bleu en b6")
-    class PasseAlignee {
-        Terrain t; Piece tour, fou;
-
-        @BeforeEach void etantDonne() {
-            t = new Terrain();
-            tour = t.poser(Couleur.BLEUS, TypePiece.TOUR, "b2");
-            fou  = t.poser(Couleur.BLEUS, TypePiece.FOU,  "b6");
-            t.demarrer(20, Couleur.BLEUS);
-            t.porteuse(tour);
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "b5");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "f5");
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "f4");
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "e3");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "e4");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "b2");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "d2");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "f2");
+        if (avecMemoire) {
+            t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "d5");
+            t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "c4");
+            Partie p = t.partie("f3", Couleur.BLEUS);
+            assertTrue(p.jouer(new Tacle(Position.of("d5"), SUD_OUEST)).accepte());
+            return p;
         }
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "c4");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "b3");
+        return t.partie("f3", Couleur.ROUGES);
+    }
 
-        @Test @DisplayName("quand les Bleus passent de b2 à b6, alors le fou devient porteur")
-        void passeRecue() {
-            ResultatCoup r = t.partie.jouer(new Passe(Position.of("b2"), Position.of("b6")));
-            assertTrue(r.accepte());
-            assertSame(fou, t.ballon.porteuse().orElseThrow());
+    @Test @DisplayName("V1 : après le tacle, 36 coups, la riposte b3-d5^c4 est absente")
+    void v1AvecMemoire() {
+        Partie p = v1(true);
+        assertEquals(new MemoireTacle(Position.of("c4"), Position.of("b3")), p.memoireTacle().orElseThrow());
+        List<String> l = lan(p.coupsLegaux());
+        assertEquals(36, l.size());
+        assertFalse(l.contains("b3-d5^c4"));
+        assertEquals(Refus.REPRESAILLES, p.verifierSaut(new Saut(Position.of("b3"), NORD_EST)));
+    }
+
+    @Test @DisplayName("V1 : même position sans mémoire, 37 coups")
+    void v1SansMemoire() {
+        List<String> l = lan(v1(false).coupsLegaux());
+        assertEquals(37, l.size());
+        assertTrue(l.contains("b3-d5^c4"));
+    }
+
+    static Partie v2() {
+        Terrain t = new Terrain();
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "b6");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "d6");
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "c5");
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "e5");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "c3");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "c2");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "e2");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "b1");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "d1");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "f1");
+        return t.partie("b3");
+    }
+
+    @Test @DisplayName("V2 : zones de touche, 27 coups, aucune poussée, mais le tacle c3-c2!c1")
+    void v2ZonesDeTouche() {
+        Partie p = v2();
+        List<String> l = lan(p.coupsLegaux());
+        assertEquals(27, l.size());
+        assertTrue(l.stream().noneMatch(s -> s.contains("@")));
+        assertTrue(l.contains("c3-c2!c1"), "repousser un adversaire sur sa propre ligne de but est légal");
+        assertEquals(Refus.ZONE_DE_TOUCHE, p.verifierPoussee(new Poussee(Position.of("c3"), OUEST)));
+    }
+
+    static Partie v3() {
+        Terrain t = new Terrain();
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "b6");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "d6");
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "c5");
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "e5");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "e3");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "c2");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "e2");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "b1");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "d1");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "f1");
+        return t.partie("f2");
+    }
+
+    @Test @DisplayName("V3 : but dans le coin, 28 coups dont e3-f2@g1")
+    void v3ButDansLeCoin() {
+        Partie p = v3();
+        List<String> l = lan(p.coupsLegaux());
+        assertEquals(28, l.size());
+        assertTrue(l.contains("e3-f2@g1"));
+        ResultatCoup r = p.jouer(new Poussee(Position.of("e3"), SUD_EST));
+        assertTrue(r.accepte());
+        assertTrue(r.but());
+        assertEquals(Statut.TERMINE, p.statut());
+        assertEquals(Couleur.BLEUS, p.vainqueur().orElseThrow());
+        assertTrue(p.coupsLegaux().isEmpty());
+        assertEquals(Refus.PARTIE_TERMINEE, p.verifier(new Deplacement(Position.of("b1"), NORD)));
+    }
+
+    // ------------------------------------------- Q4–Q6 : chaque refus, chaque effet
+
+    @Test void pasDePieceEtPasSonTour() {
+        Partie p = Partie.positionOfficielle();
+        assertEquals(Refus.PAS_DE_PIECE, p.verifier(new Deplacement(Position.of("a1"), NORD)));
+        assertEquals(Refus.PAS_SON_TOUR, p.verifier(new Deplacement(Position.of("c2"), NORD)));
+        assertEquals(Refus.PAS_SON_TOUR, p.jouer(new Deplacement(Position.of("c2"), NORD)).refus());
+    }
+
+    @Test void deplacementHorsPlateauEtCaseNonLibre() {
+        Partie p = Partie.positionOfficielle();
+        assertEquals(Refus.HORS_PLATEAU, p.verifierDeplacement(new Deplacement(Position.of("d6"), NORD)));
+        assertEquals(Refus.CASE_NON_LIBRE, p.verifierDeplacement(new Deplacement(Position.of("b6"), SUD_EST)), "c5 est occupée");
+        assertEquals(Refus.CASE_NON_LIBRE, p.verifierDeplacement(new Deplacement(Position.of("c5"), SUD_EST)), "la case du ballon n'est pas libre");
+        assertEquals(Refus.AUCUN, p.verifierDeplacement(new Deplacement(Position.of("d6"), SUD)));
+    }
+    @Test void unDeplacementAccepteTermineLeTour() {
+        Partie p = Partie.positionOfficielle();
+        ResultatCoup r = p.jouer(new Deplacement(Position.of("d6"), SUD));
+        assertTrue(r.accepte()); assertFalse(r.but());
+        assertEquals(Couleur.ROUGES, p.trait());
+        assertTrue(p.plateau().pieceEn(Position.of("d5")).isPresent());
+        assertTrue(p.plateau().estLibre(Position.of("d6")));
+    }
+
+    @Test void unCoupRefuseNeChangeRien() {
+        Partie p = Partie.positionOfficielle();
+        assertFalse(p.jouer(new Deplacement(Position.of("d6"), NORD)).accepte());
+        assertEquals(Couleur.BLEUS, p.trait());
+        assertEquals(DEPART, lan(p.coupsLegaux()));
+    }
+
+    @Test void pousseeNominale() {
+        Partie p = Partie.positionOfficielle();
+        ResultatCoup r = p.jouer(new Poussee(Position.of("c5"), SUD_EST));      // c5-d4@e3
+        assertTrue(r.accepte()); assertFalse(r.but());
+        assertEquals(Position.of("e3"), p.ballon().position());
+        assertTrue(p.plateau().caseA(Position.of("e3")).porteBallon());
+        assertFalse(p.plateau().caseA(Position.of("d4")).porteBallon());
+        assertEquals(TypePiece.ATTAQUANT, p.plateau().pieceEn(Position.of("d4")).orElseThrow().type());
+        assertEquals(Couleur.ROUGES, p.trait());
+    }
+
+    @Test void pousseeRefusee() {
+        Partie p = Partie.positionOfficielle();
+        assertEquals(Refus.PAS_DE_BALLON, p.verifierPoussee(new Poussee(Position.of("c5"), NORD)));
+        assertEquals(Refus.PAS_DE_BALLON, p.verifierPoussee(new Poussee(Position.of("b6"), NORD)), "hors plateau compte comme pas de ballon");
+        Terrain t = new Terrain();
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "c3");
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "e4");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "f1");
+        Partie q = t.partie("b3");
+        assertEquals(Refus.ZONE_DE_TOUCHE, q.verifierPoussee(new Poussee(Position.of("c3"), OUEST)));
+        Terrain t2 = new Terrain();
+        t2.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "c3");
+        t2.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "e3");
+        Partie q2 = t2.partie("d3");
+        assertEquals(Refus.CASE_NON_LIBRE, q2.verifierPoussee(new Poussee(Position.of("c3"), EST)));
+        Terrain t3 = new Terrain();
+        t3.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "f6");
+        Partie q3 = t3.partie("g6");
+        assertEquals(Refus.HORS_PLATEAU, q3.verifierPoussee(new Poussee(Position.of("f6"), EST)));
+    }
+
+    @Test void butContreSonCamp() {
+        Terrain t = new Terrain();
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "d4");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "b1");
+        Partie p = t.partie("d5");
+        ResultatCoup r = p.jouer(new Poussee(Position.of("d4"), NORD));
+        assertTrue(r.but());
+        assertEquals(Couleur.ROUGES, p.vainqueur().orElseThrow(), "le ballon sur le rang 6 : les Rouges gagnent, qui que soit le pousseur");
+        assertEquals(Statut.TERMINE, p.statut());
+    }
+
+    @Test void tacleNominalEtMemoire() {
+        Terrain t = new Terrain();
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "d5");
+        Piece victime = t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "d4");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "a1");
+        Partie p = t.partie("g6");
+        ResultatCoup r = p.jouer(new Tacle(Position.of("d5"), SUD));
+        assertTrue(r.accepte());
+        assertEquals(Position.of("d3"), p.plateau().positionDe(victime).orElseThrow());
+        assertTrue(p.plateau().pieceEn(Position.of("d4")).orElseThrow().couleur() == Couleur.BLEUS);
+        assertEquals(Position.of("g6"), p.ballon().position(), "le ballon ne bouge pas dans un tacle");
+        assertEquals(new MemoireTacle(Position.of("d4"), Position.of("d3")), p.memoireTacle().orElseThrow());
+        assertEquals(Refus.REPRESAILLES, p.verifierTacle(new Tacle(Position.of("d3"), NORD)));
+        assertTrue(p.jouer(new Deplacement(Position.of("a1"), NORD)).accepte());
+        assertTrue(p.memoireTacle().isEmpty(), "tout autre coup efface la mémoire");
+    }
+
+    @Test void tacleRefuse() {
+        Terrain t = new Terrain();
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "c5");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "d5");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "e5");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "b1");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "e4");
+        t.poser(Couleur.ROUGES, TypePiece.ATTAQUANT, "a1");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "f3");
+        Partie p = t.partie("g6");
+        assertEquals(Refus.RESERVE_AUX_DEFENSEURS, p.verifierTacle(new Tacle(Position.of("c5"), SUD)));
+        assertEquals(Refus.PAS_D_ADVERSAIRE, p.verifierTacle(new Tacle(Position.of("d5"), EST)), "une pièce de son camp");
+        assertEquals(Refus.PAS_D_ADVERSAIRE, p.verifierTacle(new Tacle(Position.of("d5"), NORD)), "une case vide");
+        assertEquals(Refus.CASE_NON_LIBRE, p.verifierTacle(new Tacle(Position.of("d5"), SUD_EST)), "e4 adverse, f3 occupée");
+        assertEquals(Refus.HORS_PLATEAU, p.verifierTacle(new Tacle(Position.of("b1"), OUEST)));
+    }
+
+    @Test void sautNominalParDessusLeBallonOuUnePiece() {
+        Partie p = Partie.positionOfficielle();
+        ResultatCoup r = p.jouer(new Saut(Position.of("e5"), SUD_OUEST));          // e5-c3^d4 : par-dessus le ballon
+        assertTrue(r.accepte());
+        assertTrue(p.plateau().pieceEn(Position.of("c3")).isPresent());
+        assertEquals(Position.of("d4"), p.ballon().position(), "ce qui est sauté ne bouge pas");
+        assertEquals(Couleur.ROUGES, p.trait());
+    }
+
+    @Test void sautRefuse() {
+        Partie p = Partie.positionOfficielle();
+        assertEquals(Refus.RESERVE_AUX_ATTAQUANTS, p.verifierSaut(new Saut(Position.of("d6"), SUD)));
+        assertEquals(Refus.RIEN_A_SAUTER, p.verifierSaut(new Saut(Position.of("c5"), SUD)));
+        assertEquals(Refus.HORS_PLATEAU, p.verifierSaut(new Saut(Position.of("c5"), NORD_EST)), "d6 occupée, e7 hors plateau");
+        Terrain t = new Terrain();
+        t.poser(Couleur.BLEUS, TypePiece.ATTAQUANT, "c4");
+        t.poser(Couleur.BLEUS, TypePiece.DEFENSEUR, "d4");
+        t.poser(Couleur.ROUGES, TypePiece.DEFENSEUR, "e4");
+        Partie q = t.partie("g6");
+        assertEquals(Refus.CASE_NON_LIBRE, q.verifierSaut(new Saut(Position.of("c4"), EST)));
+    }
+
+    @Test void verifierAiguilleParType() {
+        Partie p = Partie.positionOfficielle();
+        assertEquals(Refus.AUCUN, p.verifier(new Poussee(Position.of("c5"), SUD_EST)));
+        assertEquals(Refus.AUCUN, p.verifier(new Saut(Position.of("e5"), SUD_OUEST)));
+        assertEquals(Refus.PAS_DE_BALLON, p.verifier(new Poussee(Position.of("c5"), NORD)));
+        assertEquals(Refus.RESERVE_AUX_DEFENSEURS, p.verifier(new Tacle(Position.of("c5"), SUD)));
+    }
+
+    // ------------------------------------------- l'adversaire (contrat, Q4)
+
+    @Test void unAdversaireQuiRenvoieUnCoupIllegalEstRefuseProprement() {
+        Partie p = Partie.positionOfficielle();
+        StrategieAdversaire tricheur = partie -> new Deplacement(Position.of("d6"), NORD);
+        ResultatCoup r = p.jouerTourAdversaire(tricheur);
+        assertFalse(r.accepte());
+        assertEquals(Refus.HORS_PLATEAU, r.refus());
+        assertEquals(Couleur.BLEUS, p.trait());
+    }
+
+    @Test void unAdversaireQuiJoueLePremierCoupLegalFaitAvancerLaPartie() {
+        Partie p = Partie.positionOfficielle();
+        StrategieAdversaire premier = partie -> partie.coupsLegaux().get(0);
+        assertTrue(p.jouerTourAdversaire(premier).accepte());
+        assertEquals(Couleur.ROUGES, p.trait());
+    }
+
+    // ------------------------------------------- deux scénarios en style BDD
+
+    @Nested @DisplayName("Étant donné un attaquant bleu en c5 et le ballon en d4")
+    class PousseeVersLeBut {
+        Partie partie;
+        @BeforeEach void etantDonne() { partie = Partie.positionOfficielle(); }
+
+        @Test @DisplayName("quand les Bleus poussent c5-d4@e3, alors le ballon est en e3 et l'attaquant en d4")
+        void pousseeAcceptee() {
+            assertTrue(partie.jouer(new Poussee(Position.of("c5"), SUD_EST)).accepte());
+            assertEquals(Position.of("e3"), partie.ballon().position());
+            assertTrue(partie.plateau().pieceEn(Position.of("d4")).isPresent());
         }
 
         @Test @DisplayName("… et le trait passe aux Rouges")
         void traitAdverse() {
-            t.partie.jouer(new Passe(Position.of("b2"), Position.of("b6")));
-            assertEquals(Couleur.ROUGES, t.partie.trait());
-        }
-
-        @Test @DisplayName("… et aucune pièce n'a bougé")
-        void rienNeBouge() {
-            t.partie.jouer(new Passe(Position.of("b2"), Position.of("b6")));
-            assertSame(tour, t.plateau.pieceEn(Position.of("b2")).orElseThrow());
-            assertSame(fou, t.plateau.pieceEn(Position.of("b6")).orElseThrow());
+            partie.jouer(new Poussee(Position.of("c5"), SUD_EST));
+            assertEquals(Couleur.ROUGES, partie.trait());
         }
     }
 
-    @Nested
-    @DisplayName("Étant donné une tour bleue porteuse en b2, un fou bleu en b6 et un cavalier rouge en b4")
-    class PasseObstruee {
-        Terrain t; Piece tour;
+    @Nested @DisplayName("Étant donné un défenseur bleu en c3 et le ballon en b3, contre le bord")
+    class PousseeEnZoneDeTouche {
+        Partie partie;
+        @BeforeEach void etantDonne() { partie = v2(); }
 
-        @BeforeEach void etantDonne() {
-            t = new Terrain();
-            tour = t.poser(Couleur.BLEUS, TypePiece.TOUR, "b2");
-            t.poser(Couleur.BLEUS, TypePiece.FOU, "b6");
-            t.poser(Couleur.ROUGES, TypePiece.CAVALIER, "b4");
-            t.demarrer(20, Couleur.BLEUS);
-            t.porteuse(tour);
-        }
-
-        @Test @DisplayName("quand les Bleus tentent la passe b2 → b6, alors elle est refusée (obstruée, réponse n° 7)")
+        @Test @DisplayName("quand les Bleus tentent c3-b3@a3, alors le coup est refusé : zone de touche")
         void refusee() {
-            ResultatCoup r = t.partie.jouer(new Passe(Position.of("b2"), Position.of("b6")));
+            ResultatCoup r = partie.jouer(new Poussee(Position.of("c3"), OUEST));
             assertFalse(r.accepte());
-            assertEquals(Refus.TRAJECTOIRE_OBSTRUEE, r.refus());
+            assertEquals(Refus.ZONE_DE_TOUCHE, r.refus());
         }
 
-        @Test @DisplayName("… et la tour reste porteuse, le trait reste aux Bleus")
-        void rienNeChange() {
-            t.partie.jouer(new Passe(Position.of("b2"), Position.of("b6")));
-            assertSame(tour, t.ballon.porteuse().orElseThrow());
-            assertEquals(Couleur.BLEUS, t.partie.trait());
+        @Test @DisplayName("… et rien n'a bougé : ballon en b3, trait aux Bleus")
+        void rienNaBouge() {
+            partie.jouer(new Poussee(Position.of("c3"), OUEST));
+            assertEquals(Position.of("b3"), partie.ballon().position());
+            assertEquals(Couleur.BLEUS, partie.trait());
         }
-    }
-
-    /** La table de décision du TP5 Q3, en avant-goût : chaque ligne un motif de refus. */
-    @ParameterizedTest(name = "passe {0} → {1} : {2}")
-    @CsvSource({
-        "b2, b6, AUCUN",
-        "b2, c4, NON_ALIGNEE",
-        "b2, g7, CIBLE_NON_COEQUIPIERE",
-        "b2, e2, CIBLE_NON_COEQUIPIERE",
-        "b6, b2, PAS_PORTEUSE",
-    })
-    void motifsDeRefusDUnePasse(String de, String vers, Refus attendu) {
-        Terrain t = new Terrain();
-        Piece tour = t.poser(Couleur.BLEUS, TypePiece.TOUR, "b2");
-        t.poser(Couleur.BLEUS, TypePiece.FOU, "b6");
-        t.poser(Couleur.BLEUS, TypePiece.CAVALIER, "c4");
-        t.poser(Couleur.ROUGES, TypePiece.DAME, "g7");
-        t.demarrer(20, Couleur.BLEUS);
-        t.porteuse(tour);
-        assertEquals(attendu, t.partie.verifierPasse(new Passe(Position.of(de), Position.of(vers))));
-    }
-
-    // =====================================================================
-    // Q4 : tir, but, mi-temps, fin de match (réponses client n° 8, 11, 12, 13)
-    // =====================================================================
-
-    @Test @DisplayName("un tir sans obstacle marque un but, et l'équipe qui encaisse engage")
-    void tirSansObstacle() {
-        Terrain t = new Terrain();
-        Piece dame = t.poser(Couleur.BLEUS, TypePiece.DAME, "d6");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        t.porteuse(dame);
-        ResultatCoup r = p.jouer(new Tir(Position.of("d6"), Direction.NORD));
-        assertTrue(r.accepte());
-        assertTrue(r.but());
-        assertEquals(1, p.score().buts(Couleur.BLEUS));
-        assertEquals(0, p.score().buts(Couleur.ROUGES));
-        assertEquals(Statut.ENGAGEMENT, p.statut());
-        assertEquals(Couleur.ROUGES, p.trait(), "l'équipe qui encaisse engage (réponse n° 12)");
-    }
-
-    @Test @DisplayName("un tir est intercepté par la première pièce rencontrée (adverse)")
-    void tirIntercepte() {
-        Terrain t = new Terrain();
-        Piece dame  = t.poser(Couleur.BLEUS, TypePiece.DAME, "d4");
-        Piece tourR = t.poser(Couleur.ROUGES, TypePiece.TOUR, "d6");
-        Partie p = t.demarrer(20, Couleur.BLEUS, "e5");   // d4 est occupée
-        t.porteuse(dame);
-        ResultatCoup r = p.jouer(new Tir(Position.of("d4"), Direction.NORD));
-        assertTrue(r.accepte());
-        assertFalse(r.but());
-        assertSame(tourR, p.ballon().orElseThrow().porteuse().orElseThrow());
-        assertEquals(0, p.score().buts(Couleur.BLEUS));
-        assertEquals(Couleur.ROUGES, p.trait());
-    }
-
-    @Test @DisplayName("un tir arrêté par une coéquipière est une simple réception")
-    void tirRecuParUneCoequipiere() {
-        Terrain t = new Terrain();
-        Piece dame = t.poser(Couleur.BLEUS, TypePiece.DAME, "d4");
-        Piece fou  = t.poser(Couleur.BLEUS, TypePiece.FOU, "d7");
-        Partie p = t.demarrer(20, Couleur.BLEUS, "e5");
-        t.porteuse(dame);
-        ResultatCoup r = p.jouer(new Tir(Position.of("d4"), Direction.NORD));
-        assertTrue(r.accepte());
-        assertFalse(r.but());
-        assertSame(fou, p.ballon().orElseThrow().porteuse().orElseThrow());
-    }
-
-    @Test @DisplayName("sortie latérale : le ballon s'arrête libre sur la dernière case")
-    void sortieLaterale() {
-        Terrain t = new Terrain();
-        Piece tour = t.poser(Couleur.BLEUS, TypePiece.TOUR, "d4");
-        Partie p = t.demarrer(20, Couleur.BLEUS, "e5");
-        t.porteuse(tour);
-        ResultatCoup r = p.jouer(new Tir(Position.of("d4"), Direction.OUEST));
-        assertTrue(r.accepte());
-        assertFalse(r.but());
-        assertTrue(p.ballon().orElseThrow().estLibre());
-        assertEquals(Position.of("a4"), p.ballon().orElseThrow().position());
-    }
-
-    @Test @DisplayName("un cavalier ne peut pas tirer en ligne")
-    void cavalierNeTirePas() {
-        Terrain t = new Terrain();
-        Piece cav = t.poser(Couleur.BLEUS, TypePiece.CAVALIER, "d4");
-        Partie p = t.demarrer(20, Couleur.BLEUS, "e5");
-        t.porteuse(cav);
-        ResultatCoup r = p.jouer(new Tir(Position.of("d4"), Direction.NORD));
-        assertFalse(r.accepte());
-        assertEquals(Refus.DIRECTION_IMPOSSIBLE, r.refus());
-    }
-
-    @Test @DisplayName("on ne tire pas sans porter le ballon")
-    void tirSansBallon() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.DAME, "d6");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        assertEquals(Refus.PAS_PORTEUSE, p.jouer(new Tir(Position.of("d6"), Direction.NORD)).refus());
-    }
-
-    @Test @DisplayName("AMBIGUÏTÉ jamais tranchée par le client : tirer vers SA PROPRE ligne de fond marque contre son camp")
-    void butContreSonCamp() {
-        Terrain t = new Terrain();
-        Piece tour = t.poser(Couleur.BLEUS, TypePiece.TOUR, "d4");
-        Partie p = t.demarrer(20, Couleur.BLEUS, "e5");
-        t.porteuse(tour);
-        ResultatCoup r = p.jouer(new Tir(Position.of("d4"), Direction.SUD));
-        assertTrue(r.but());
-        assertEquals(1, p.score().buts(Couleur.ROUGES),
-                "le document client ne tranche pas ce cas — décision de conception à faire valider");
-    }
-
-    @Test @DisplayName("le match se termine sur un nul quand K tours sont joués deux fois")
-    void matchNul() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.CAVALIER, "b1");
-        t.poser(Couleur.ROUGES, TypePiece.CAVALIER, "b8");
-        Partie p = t.demarrer(1, Couleur.BLEUS);
-        assertThrows(IllegalStateException.class, p::vainqueur, "match en cours");
-        p.jouer(new Deplacement(Position.of("b1"), Position.of("c3")));
-        p.jouer(new Deplacement(Position.of("b8"), Position.of("c6")));
-        assertEquals(Statut.MI_TEMPS, p.statut());
-        assertEquals(2, p.periode());
-        assertEquals(Couleur.ROUGES, p.engagementSecondePeriode());
-        p.engager(Couleur.ROUGES, Position.of("e5"));
-        p.jouer(new Deplacement(Position.of("c6"), Position.of("b8")));
-        p.jouer(new Deplacement(Position.of("c3"), Position.of("b1")));
-        assertEquals(Statut.TERMINE, p.statut());
-        assertTrue(p.vainqueur().isEmpty(), "match nul autorisé (réponse n° 13)");
-        assertEquals(Refus.PARTIE_TERMINEE, p.jouer(new Deplacement(Position.of("b1"), Position.of("c3"))).refus());
-    }
-
-    @Test @DisplayName("le vainqueur est l'équipe qui a marqué le plus de buts")
-    void vainqueur() {
-        Terrain t = new Terrain();
-        Piece dame = t.poser(Couleur.BLEUS, TypePiece.DAME, "d6");
-        t.poser(Couleur.ROUGES, TypePiece.CAVALIER, "h8");
-        Partie p = t.demarrer(1, Couleur.BLEUS);
-        t.porteuse(dame);
-        assertTrue(p.jouer(new Tir(Position.of("d6"), Direction.NORD)).but());   // 1 tour joué
-        p.engager(Couleur.ROUGES, Position.of("d4"));
-        p.jouer(new Deplacement(Position.of("h8"), Position.of("g6")));           // 2 tours : mi-temps
-        assertEquals(Statut.MI_TEMPS, p.statut());
-        p.engager(p.engagementSecondePeriode(), Position.of("e5"));
-        p.jouer(new Deplacement(Position.of("g6"), Position.of("h8")));
-        p.jouer(new Deplacement(Position.of("d6"), Position.of("d7")));
-        assertEquals(Statut.TERMINE, p.statut());
-        assertEquals(Couleur.BLEUS, p.vainqueur().orElseThrow());
-    }
-
-    // =====================================================================
-    // Q6 : l'adversaire automatique (contrat de StrategieAdversaire)
-    // =====================================================================
-
-    @Test @DisplayName("la partie demande un coup à la stratégie et l'applique")
-    void tourAdversaire() {
-        Terrain t = new Terrain();
-        t.poser(Couleur.BLEUS, TypePiece.CAVALIER, "b1");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        StrategieAdversaire ia = partie -> new Deplacement(Position.of("b1"), Position.of("c3"));
-        ResultatCoup r = p.jouerTourAdversaire(ia);
-        assertTrue(r.accepte());
-        assertEquals(Couleur.ROUGES, p.trait());
-        assertTrue(t.plateau.pieceEn(Position.of("c3")).isPresent());
-    }
-
-    @Test @DisplayName("un coup illégal de la stratégie est refusé proprement, rien ne bouge")
-    void coupIllegalDeLaStrategie() {
-        Terrain t = new Terrain();
-        Piece cav = t.poser(Couleur.BLEUS, TypePiece.CAVALIER, "b1");
-        Partie p = t.demarrer(20, Couleur.BLEUS);
-        StrategieAdversaire ia = partie -> new Deplacement(Position.of("b1"), Position.of("b5"));
-        ResultatCoup r = p.jouerTourAdversaire(ia);
-        assertFalse(r.accepte());
-        assertEquals(Refus.NON_ALIGNEE, r.refus());
-        assertEquals(Couleur.BLEUS, p.trait());
-        assertSame(cav, t.plateau.pieceEn(Position.of("b1")).orElseThrow());
-        assertEquals(Statut.EN_JEU, p.statut());
     }
 }

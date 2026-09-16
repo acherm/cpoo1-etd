@@ -21,7 +21,7 @@
 | 5. Glossaire | TD2 | |
 | 6. Modèle du domaine et diagrammes d'objets | TD2 (papier) → TP3 (studio) → TP4 (service) | |
 | 7. Stories, critères, scénarios | TD2 → TP5 | |
-| 8. Machine à états du match | TD2 | |
+| 8. Machine à états de la partie | TD2 | |
 | 9. Réponses officielles du client (service) et cas d'utilisation | TP4 | |
 | 10. Variantes : le feature model | TP4 | |
 | 11. Points de variation dans le code | TP4–TP5 | |
@@ -33,34 +33,47 @@
 *Copie conforme de `regles-chessball.pdf`. Ne pas corriger ce texte : les
 corrections sont vos réponses officielles, en §3.*
 
-ChessBall est un jeu de football qui se joue sur un plateau d'échecs de 8×8
-cases (colonnes `a`–`h`, rangées `1`–`8`). Deux équipes s'affrontent, les
-Bleus et les Rouges. Chaque équipe dispose de six pièces : une dame, deux
-tours, deux fous et un cavalier. Les pièces se déplacent comme aux échecs :
-la dame glisse en ligne ou en diagonale, les tours en ligne, les fous en
-diagonale, le cavalier saute en « L ». Les pièces qui glissent ne peuvent pas
-traverser une case occupée.
+ChessBall est un jeu de football sur un petit damier, à deux joueurs.
+Chacun dirige une équipe de cinq pièces et cherche à pousser l'unique
+ballon jusqu'à la ligne de but adverse ; le premier qui y parvient gagne la
+partie.
 
-Avant le coup d'envoi, chaque équipe installe ses pièces sur ses deux
-premières rangées, comme elle l'entend. Un unique ballon est placé au centre
-du terrain pour l'engagement.
+Le matériel : un plateau de 7 colonnes (`a` à `g`) sur 6 rangées (`1` à `6`,
+de bas en haut) ; deux équipes, les Bleus et les Rouges, de cinq pièces
+chacune (deux attaquants, trois défenseurs) ; un ballon, qui n'appartient à
+personne. Les lignes de but sont les rangées `1` et `6`, coins compris (la
+rangée `6` est la ligne de but des Bleus, où les Rouges marquent ; la rangée
+`1` celle des Rouges, où les Bleus marquent). Les zones de touche sont les
+huit cases des bords gauche et droit entre les deux lignes de but (`a2` à
+`a5`, `g2` à `g5`) : le ballon ne peut jamais y être poussé ; les pièces
+peuvent s'y trouver.
 
-Les équipes jouent à tour de rôle. À son tour, une équipe effectue une seule
-des actions suivantes : déplacer une de ses pièces selon son motif de
-déplacement ; passer le ballon : la pièce porteuse du ballon l'envoie à une
-pièce de son équipe située sur une ligne que la porteuse pourrait emprunter ;
-tirer : la porteuse propulse le ballon en direction de la ligne de fond
-adverse, le long d'une ligne qu'elle pourrait emprunter.
+La mise en place : défenseurs bleus b6 d6 f6, attaquants bleus c5 e5, ballon
+d4, attaquants rouges c2 e2, défenseurs rouges b1 d1 f1. Les Bleus jouent en
+premier.
 
-Une pièce qui atteint la case du ballon s'en empare et devient porteuse. Une
-passe ou un tir peut être intercepté par une pièce adverse qui se trouve sur
-le chemin du ballon.
+Le tour de jeu : à tour de rôle, exactement une action avec exactement une
+de ses pièces, dans l'une des huit directions, d'une case à sa voisine. Une
+case est libre quand elle est sur le plateau et ne contient ni pièce ni
+ballon. Quatre actions : le déplacement (toute pièce, vers une case voisine
+libre) ; la poussée du ballon (toute pièce : si le ballon est sur la case
+voisine et que la case suivante est libre et n'est pas une zone de touche,
+la pièce prend la place du ballon et le ballon avance d'une case ; une ligne
+de but est une destination autorisée) ; le tacle (défenseurs seulement : si
+une pièce adverse est sur la case voisine et que la case suivante est libre,
+le défenseur prend sa place et l'adversaire est repoussé d'une case ; le
+ballon ne bouge pas) ; le saut (attaquants seulement : si la case voisine
+est occupée par une pièce et que la case suivante est libre, l'attaquant
+saute par-dessus ; ce qui est sauté ne bouge pas ; une seule case).
 
-Il y a but lorsque le ballon franchit la ligne de fond adverse. L'équipe qui
-marque ajoute un point à son score, puis un nouvel engagement a lieu au
-centre du terrain. Le match se joue en deux mi-temps de K tours chacune (la
-valeur de K est à convenir avec l'organisateur du tournoi). À la fin du
-match, l'équipe qui a marqué le plus de buts l'emporte.
+Pas de représailles immédiates : quand un défenseur `T` vient de tacler une
+pièce `V`, si `V` est un défenseur, `V` ne peut pas tacler `T` à ce tour ;
+si `V` est un attaquant, `V` ne peut pas sauter par-dessus `T` à ce tour.
+Tout le reste est permis, et le souvenir s'efface au coup suivant.
+
+Marquer et gagner : la partie se termine immédiatement quand le ballon
+s'arrête sur une ligne de but ; rangée `1`, les Bleus ont gagné ; rangée
+`6`, les Rouges. Il n'y a pas de score : un but, c'est la victoire.
 
 ## 2. Le service, tel que le client l'a écrit
 
@@ -97,7 +110,8 @@ révélé la réponse (TP3, TP4) s'ajoutent ici, marquées « (suite prof) ».*
 a-t-il un arbitre humain ?*
 
 **Hors périmètre pour ce semestre.** *À compléter : la liste explicite (IHM
-graphique, réseau, persistance, IA « forte »…).*
+graphique, réseau, persistance, IA « forte », protocole des moteurs
+officiels…).*
 
 ## 5. Glossaire — TD2
 
@@ -108,39 +122,41 @@ ceux du diagramme de classes (§6) et du code (§12) : même mot partout.*
 |---|---|
 | Plateau | *À compléter* |
 | Case | |
+| Case libre | |
+| Ligne de but | |
+| Zone de touche | |
 | Pièce | |
-| Motif de déplacement | |
-| Porteuse | |
+| Attaquant | |
+| Défenseur | |
 | Ballon | |
-| Coup (déplacement, passe, tir) | |
-| Interception | |
-| Engagement | |
+| Coup (déplacement, poussée, tacle, saut) | |
 | Trait | |
-| Tour (de jeu) | |
-| Mi-temps | |
+| Tour | |
+| Mémoire de tacle (représailles) | |
 | But | |
-| Score | |
-| Match | |
+| Partie | |
+| Rencontre | |
 | *(service, TP4)* Compte, Joueur, Appariement, Classement, Forfait | |
 
 ## 6. Modèle du domaine et diagrammes d'objets — TD2, TP3, TP4
 
 **6.1 Le modèle du domaine** (`domaine.puml` / `domaine.svg`). *Concepts,
 associations nommées, cardinalités dans les deux sens, compositions
-justifiées, le ballon et sa contrainte `{xor}`. Étendu au service au TP4
-(Compte, Joueur, Match, Appariement, Classement) : quelle association entre
-le Match du service et la Partie du moteur ?*
+justifiées, le ballon et sa contrainte (jamais sur une case occupée par une
+pièce). Étendu au service au TP4 (Compte, Joueur, Match, Appariement,
+Classement) : quelle association entre le Match du service et la Partie du
+moteur ?*
 
 ![Modèle du domaine](domaine.svg)
 
-**6.2 Décisions de modélisation.** *Où vit le ballon, et pourquoi (quelle
-modélisation était fausse) ; ce qui est composition et ce qui ne l'est pas ;
-le mot « tour » ; les termes du glossaire qui ne sont pas des classes, et
-pourquoi.*
+**6.2 Décisions de modélisation.** *Le ballon est-il une pièce, et
+pourquoi pas ; ce qui est composition et ce qui ne l'est pas ; où vivent le
+trait et la mémoire de tacle ; les termes du glossaire qui ne sont pas des
+classes (ligne de but, zone de touche…), et pourquoi.*
 
 **6.3 Diagrammes d'objets** (`depart.puml`, `apres.puml`). *La position de
-départ simplifiée, puis la position après un coup : ils instancient §6.1,
-sinon c'est §6.1 qui est faux.*
+départ simplifiée, puis la position après une poussée : ils instancient
+§6.1, sinon c'est §6.1 qui est faux.*
 
 ![Position de départ](depart.svg)
 
@@ -165,19 +181,20 @@ Scénario: À compléter
 **7.4 Contrat** *d'une opération (préconditions / postconditions) : ce que le
 contrat dit que le scénario ne dit pas.*
 
-## 8. Machine à états du match — TD2
+## 8. Machine à états de la partie — TD2
 
-*`etats-match.puml` / `.svg` : engagement, alternance, but, mi-temps, fin.
+*`etats-partie.puml` / `.svg` : trait qui alterne, coup refusé, période sans
+représailles après un tacle, but, fins sans but décidées par le client.
 Événement et garde sur chaque transition ; la transition qu'aucun scénario ne
 couvrait.*
 
-![Machine à états du match](etats-match.svg)
+![Machine à états de la partie](etats-partie.svg)
 
 ## 9. Réponses officielles du client (service) et cas d'utilisation — TP4
 
 | N° | Question posée au client | Réponse officielle |
 |---|---|---|
-| S1 | *À compléter (« force comparable » ? « trop de matchs » ? « à la Elo » ? forfait ? pseudo ?)* | |
+| S1 | *À compléter (« force comparable » ? « trop de matchs » ? « à la Elo » ? forfait ? pseudo ? qui joue les Bleus ?)* | |
 
 **Cas d'utilisation du service.** *Le diagramme (`service-uc.puml`), et pour
 « Demander un match » (rédigé au CM1) la liste de ses chemins, chacun avec le
@@ -186,15 +203,15 @@ cours (sept rubriques).*
 
 ## 10. Variantes : le feature model — TP4
 
-*`chessball.uvl` / `.svg`, la contrainte du client, le nombre de
+*`chessball.uvl` / `.svg`, les contraintes du client, le nombre de
 configurations valides (votre calcul, puis le compteur d'UVL Studio).*
 
 ![Feature model](chessball.svg)
 
 ## 11. Points de variation dans le code — TP4, TP5
 
-*Quels points de variation du feature model existent déjà dans le code (K,
-l'IA adverse, l'appariement, la fin de mi-temps…), sous quelle forme
+*Quels points de variation du feature model existent déjà dans le code (la
+règle de nul, l'IA adverse, l'appariement, qui commence…), sous quelle forme
 (paramètre, interface + implémentations : le patron Stratégie,
 `strategie.puml`), et lesquels n'y sont pas.*
 
@@ -206,11 +223,12 @@ modèle.*
 
 | Élément du modèle (§) | Classe(s) Java | Test(s) |
 |---|---|---|
-| Équipe *aligne* 6 pièces (§6.1) | *À compléter* | |
-| Ballon posé XOR porté (§6.1) | | |
-| Coup refusé ⇒ auto-transition (§8) | | |
+| Équipe *aligne* 5 pièces, 2 attaquants et 3 défenseurs (§6.1) | *À compléter* | |
+| Le ballon est sur exactement une case, jamais avec une pièce (§6.1) | | |
+| Coup refusé ⇒ rien ne change (§8) | | |
+| Représailles interdites après un tacle (§8) | | |
 | Scénario « … » (§7.3) | | |
-| J7 passe (§3) | | |
+| J1 aucun coup légal (§3) | | |
 | S1 appariement (§9) | | |
 
 ## 13. Rapport de test — TP5
@@ -218,4 +236,5 @@ modèle.*
 *Voir `rapport.md` (plan imposé au TP5 : ce qui est implémenté, couverture
 avant/après, score de mutation avant/après, doubles, ce que les tests n'ont
 pas trouvé). Résumez ici en cinq lignes les chiffres finaux : couverture de
-branches par paquet, score de mutation par paquet, nombre de tests.*
+branches par paquet, score de mutation par paquet, nombre de tests, et les
+nombres de coups légaux obtenus sur les positions de référence.*

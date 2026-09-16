@@ -1,4 +1,4 @@
 package chessball.moteur;
 
-/** Les états du match, tels que la machine à états du TD2 les nomme. */
-public enum Statut { ENGAGEMENT, EN_JEU, MI_TEMPS, TERMINE }
+/** Une partie est en jeu, puis terminée (but, ou nulle par décision du club). */
+public enum Statut { EN_JEU, TERMINE }
