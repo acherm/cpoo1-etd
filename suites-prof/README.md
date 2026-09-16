@@ -8,7 +8,7 @@ comme sources de test : `mvn test` l'exécute ensuite, quel que soit l'IDE.
 |---|---|---|---|---|
 | `velo/` | `velo-etd` | TP2 Q11 | `src/test/java2/velo/` | 24 |
 | `chessball-tp3/` | `chessball-etd` | TP3 Q10 | `src/test/java2/chessball/` | 22 : le moteur statique |
-| `chessball-tp4/` | `chessball-etd` | TP4 Q7 | `src/test/java2/chessball/` | 47 : la partie, contre l'oracle du dépôt officiel (25 coups de départ, perft 1 à 3, vecteurs V1 à V3), chaque refus, deux scénarios |
+| `chessball-tp4/` | `chessball-etd` | TP4 Q7 | `src/test/java2/chessball/` | 25 : la partie, contre l'oracle du dépôt officiel (25 coups de départ, perft 1 à 3, vecteurs V1 à V3), chaque refus, deux scénarios |
 
 Une suite **compile contre les signatures du sujet** (noms de classes, de
 méthodes, types de retour) : si `mvn test` ne compile pas, c'est une
